@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Thống kê</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Favicon online -->
+  <link rel="icon" href="./icon.png" type="image/png">
+
+  <style>
+    :root {
+      --brand: #0b5ed7;
+      --bg: #eef3ff;
+      --text-main: #1d2a38;
+      --text-muted: #6c7a89;
+      --border: #d0d7e2;
+    }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left,#e7efff,#f4f7ff);
+      padding: 35px 12px;
+      margin: 0;
+      color: var(--text-main);
+      font-size: 17px;
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .card {
+      min-height: 80vh;
+      background: #fff;
+      border-radius: 20px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 20px 45px rgba(15,23,42,0.14);
+    }
+
+    .card-header {
+      padding: 18px 28px;
+      background: linear-gradient(120deg, var(--brand), #3c7bff);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-header-title {
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-header-title .icon {
+      background: rgba(255,255,255,0.2);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .card-header-badge {
+      font-size: 14px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .card-body {
+      padding: 26px 32px 30px;
+    }
+
+    /* Hàng trên: file + 2 select */
+    .top-grid {
+      display: grid;
+      grid-template-columns: minmax(0,2fr) minmax(0,1.5fr) minmax(0,1fr);
+      gap: 18px 24px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 992px) {
+      .top-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #f9fafc;
+      font-size: 16px;
+      outline: none;
+      transition: .2s;
+    }
+    input[type="file"]:focus {
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(11,94,215,0.18);
+    }
+
+    .status-row {
+      margin-top: 6px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-text { color: var(--text-muted); }
+
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      color: var(--brand);
+      font-size: 15px;
+    }
+    .loading.show { display: inline-flex; }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid #d7e5ff;
+      border-top-color: var(--brand);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .preview-header {
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    #btnExport {
+      background: var(--brand);
+      padding: 10px 20px;
+      border-radius: 60px;
+      color: white;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 10px rgba(11,94,215,0.3);
+      transition: .2s;
+    }
+    #btnExport:hover { background: #0a53c4; }
+    #btnExport:disabled { opacity: .55; cursor: not-allowed; }
+
+    .table-container {
+      margin-top: 10px;
+      max-height: 480px;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .table-scroll {
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    thead th {
+      background: linear-gradient(120deg, #0b5ed7, #3c7bff);
+      color: white;
+      padding: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    tbody td {
+      padding: 10px;
+      border-bottom: 1px solid #e6e9f0;
+    }
+    tbody tr:nth-child(even) td { background: #f7faff; }
+    tbody tr:hover td { background: #edf3ff; }
+    .text-center { text-align: center; }
+
+    /* ========== MULTI-SELECT (MA_BENH & LOAI_KCB) ========== */
+    .ms-wrapper {
+      position: relative;
+      font-size: 16px;
+    }
+    .ms-display {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #f9fafc;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: .2s;
+    }
+    .ms-display span {
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ms-display .caret {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .ms-display.active {
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(11,94,215,0.18);
+    }
+
+    .ms-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      margin-top: 4px;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(15,23,42,0.25);
+      z-index: 20;
+      display: none;
+      overflow: hidden;
+    }
+    .ms-dropdown.open { display: block; }
+
+    .ms-search {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+    .ms-search input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .ms-options {
+      max-height: 240px;
+      overflow-y: auto;
+      background: #fff;
+    }
+    .ms-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .ms-option:hover {
+      background: #f3f4ff;
+    }
+    .ms-option input {
+      accent-color: var(--brand);
+      width: 16px;
+      height: 16px;
+    }
+    .ms-option-label-strong {
+      font-weight: 600;
+    }
+
+    .ms-actions {
+      display: flex;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+    .ms-actions button {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      cursor: pointer;
+      border-right: 1px solid #e5e7eb;
+    }
+    .ms-actions button:last-child { border-right: none; }
+    .ms-actions button:hover {
+      background: #eef2ff;
+    }
+    .ms-actions button.primary {
+      font-weight: 600;
+      color: var(--brand);
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-title">
+        <div class="icon">📊</div>
+        Lọc & Xuất dữ liệu
+      </div>
+      <div class="card-header-badge">© Quốc IT</div>
+    </div>
+
+    <div class="card-body">
+      <!-- HÀNG ĐẦU: FILE + 2 SELECT -->
+      <div class="top-grid">
+        <!-- FILE -->
+        <div>
+          <label>Chọn file Excel <i style="color: #555;">(15. Báo cáo tổng hợp dữ liệu ngoại trú, nội trú (130-4750) DKDTP V2)</i></label>
+          <input type="file" id="fileInput" accept=".xls,.xlsx,.csv">
+          <div class="status-row">
+            <div id="status" class="status-text">Chưa chọn file.</div>
+            <div id="loading" class="loading">
+              <div class="spinner"></div> Đang đọc file...
+            </div>
+          </div>
+        </div>
+        <!-- MA_BENH -->
+        <div style="padding: 0 8px;">
+          <label>Chọn mã bệnh (có thể nhiều mã)</label>
+          <div class="ms-wrapper" id="maBenhMulti">
+            <div class="ms-display" id="msDisplay">
+              <span id="msDisplayText">-- Vui lòng upload file trước --</span>
+              <span class="caret">▼</span>
+            </div>
+            <div class="ms-dropdown" id="msDropdown">
+              <div class="ms-search">
+                <input type="text" id="msSearchInput" placeholder="Tìm mã bệnh...">
+              </div>
+              <div class="ms-options" id="msOptions"></div>
+              <div class="ms-actions">
+                <button type="button" id="msSelectAll">Chọn tất</button>
+                <button type="button" id="msClearAll">Bỏ chọn</button>
+                <button type="button" class="primary" id="msOk">Đồng ý</button>
+                <button type="button" id="msCancel">Hủy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOAI_KCB -->
+        <div>
+          <label>Chọn loại KCB</label>
+          <div class="ms-wrapper" id="loaiMulti">
+            <div class="ms-display" id="loaiDisplay">
+              <span id="loaiDisplayText">Không chọn = tất cả</span>
+              <span class="caret">▼</span>
+            </div>
+            <div class="ms-dropdown" id="loaiDropdown">
+              <div class="ms-search">
+                <input type="text" id="loaiSearchInput" placeholder="Tìm loại KCB...">
+              </div>
+              <div class="ms-options" id="loaiOptions"></div>
+              <div class="ms-actions">
+                <button type="button" id="loaiSelectAll">Chọn tất</button>
+                <button type="button" id="loaiClearAll">Bỏ chọn</button>
+                <button type="button" class="primary" id="loaiOk">Đồng ý</button>
+                <button type="button" id="loaiCancel">Hủy</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- NÚT EXPORT -->
+      <div class="preview-header">
+        <button id="btnExport" disabled>📥 Xuất Excel</button>
+      </div>
+
+      <!-- BẢNG XEM TRƯỚC -->
+      <div class="table-container">
+        <div class="table-scroll">
+          <table id="previewTable">
+            <thead>
+            <tr>
+              <th style="width:60px;">STT</th>
+              <th>Mã bệnh</th>
+              <th>Địa chỉ</th>
+              <th>Họ & Tên BN</th>
+              <th>Giới tính</th>
+              <th>Năm sinh</th>
+              <th>Mã thẻ BHYT</th>
+              <th>CMND</th>
+              <th>Loại KCB</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let allRows = [];
+
+  // MA_BENH
+  let maBenhList = [];
+  let selectedMaBenh = [];
+  let tempSelectedMaBenh = [];
+
+  // LOAI_KCB – 3 giá trị cố định
+  const LOAI_KCB_OPTIONS = [
+    "Điều trị nội trú",
+    "Khám bệnh",
+    "Điều trị ngoại trú"
+  ];
+  let selectedLoaiKcb = [];     // xác nhận
+  let tempSelectedLoaiKcb = []; // tạm trong dropdown
+
+  const fileInput = document.getElementById("fileInput");
+  const btnExport = document.getElementById("btnExport");
+  const statusBox = document.getElementById("status");
+  const previewTableBody = document.querySelector("#previewTable tbody");
+  const loadingBox = document.getElementById("loading");
+
+  // DOM MA_BENH
+  const msDisplay = document.getElementById("msDisplay");
+  const msDisplayText = document.getElementById("msDisplayText");
+  const msDropdown = document.getElementById("msDropdown");
+  const msOptions = document.getElementById("msOptions");
+  const msSearchInput = document.getElementById("msSearchInput");
+  const msSelectAllBtn = document.getElementById("msSelectAll");
+  const msClearAllBtn = document.getElementById("msClearAll");
+  const msOkBtn = document.getElementById("msOk");
+  const msCancelBtn = document.getElementById("msCancel");
+
+  // DOM LOAI_KCB
+  const loaiDisplay = document.getElementById("loaiDisplay");
+  const loaiDisplayText = document.getElementById("loaiDisplayText");
+  const loaiDropdown = document.getElementById("loaiDropdown");
+  const loaiOptions = document.getElementById("loaiOptions");
+  const loaiSearchInput = document.getElementById("loaiSearchInput");
+  const loaiSelectAllBtn = document.getElementById("loaiSelectAll");
+  const loaiClearAllBtn = document.getElementById("loaiClearAll");
+  const loaiOkBtn = document.getElementById("loaiOk");
+  const loaiCancelBtn = document.getElementById("loaiCancel");
+
+  function resetUI() {
+    maBenhList = [];
+    selectedMaBenh = [];
+    tempSelectedMaBenh = [];
+    msOptions.innerHTML = "";
+    msDisplayText.textContent = "-- Vui lòng upload file trước --";
+
+    selectedLoaiKcb = [];
+    tempSelectedLoaiKcb = [];
+    // options loại KCB giữ nguyên (tĩnh), chỉ cần sync lại checkbox
+    renderLoaiOptions();
+
+    btnExport.disabled = true;
+    previewTableBody.innerHTML = "";
+  }
+
+  // Helper: lấy text loại KCB từ row
+  function getLoaiKcbText(row) {
+    if (row.LOAI_KCB) return row.LOAI_KCB;
+    if (row.MA_LOAIKCB) {
+      const code = String(row.MA_LOAIKCB).trim();
+      if (code === "1") return "Điều trị nội trú";
+      if (code === "2") return "Khám bệnh";
+      if (code === "3") return "Điều trị ngoại trú";
+      return row.MA_LOAIKCB;
+    }
+    return "";
+  }
+
+  // ====== ĐỌC FILE EXCEL ======
+  fileInput.addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (!file) {
+      resetUI();
+      return;
+    }
+
+    resetUI();
+    statusBox.textContent = "Đang đọc file...";
+    loadingBox.classList.add("show");
+
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    reader.onload = function (evt) {
+      try {
+        const workbook = XLSX.read(evt.target.result, { type: "binary" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        allRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const benhSet = new Set();
+        allRows.forEach(r => {
+          if (r.MA_BENH) benhSet.add(r.MA_BENH);
+        });
+
+        maBenhList = Array.from(benhSet).sort();
+        renderBenhOptions(maBenhList);
+
+        msDisplayText.textContent = "Chọn 1 hoặc nhiều mã bệnh...";
+        btnExport.disabled = false;
+        statusBox.textContent = `Đã đọc xong · ${maBenhList.length} mã bệnh.`;
+      } catch (err) {
+        console.error(err);
+        statusBox.textContent = "Lỗi đọc file!";
+        resetUI();
+      } finally {
+        loadingBox.classList.remove("show");
+      }
+    };
+  });
+
+  // ====== RENDER OPTIONS ======
+  function renderBenhOptions(list) {
+    msOptions.innerHTML = "";
+    const selectAllRow = document.createElement("label");
+    selectAllRow.className = "ms-option ms-option-label-strong";
+    selectAllRow.innerHTML = `
+      <input type="checkbox" data-type="select-all-benh">
+      <span>Chọn tất</span>
+    `;
+    msOptions.appendChild(selectAllRow);
+
+    list.forEach(code => {
+      const lbl = document.createElement("label");
+      lbl.className = "ms-option";
+      lbl.innerHTML = `
+        <input type="checkbox" value="${code}">
+        <span>${code}</span>
+      `;
+      msOptions.appendChild(lbl);
+    });
+  }
+
+  function renderLoaiOptions() {
+    loaiOptions.innerHTML = "";
+    const selectAllRow = document.createElement("label");
+    selectAllRow.className = "ms-option ms-option-label-strong";
+    selectAllRow.innerHTML = `
+      <input type="checkbox" data-type="select-all-loai">
+      <span>Chọn tất</span>
+    `;
+    loaiOptions.appendChild(selectAllRow);
+
+    LOAI_KCB_OPTIONS.forEach(text => {
+      const lbl = document.createElement("label");
+      lbl.className = "ms-option";
+      lbl.innerHTML = `
+        <input type="checkbox" value="${text}">
+        <span>${text}</span>
+      `;
+      loaiOptions.appendChild(lbl);
+    });
+  }
+
+  renderLoaiOptions();
+
+  // ====== COMMON HELPERS ======
+  function syncCheckboxes(container, list, type) {
+    const checkboxes = container.querySelectorAll('input[type="checkbox"][value]');
+    checkboxes.forEach(cb => cb.checked = list.includes(cb.value));
+
+    const selectAllCb = container.querySelector(`input[data-type="select-all-${type}"]`);
+    if (selectAllCb) {
+      if (checkboxes.length && Array.from(checkboxes).every(cb => cb.checked)) {
+        selectAllCb.checked = true;
+      } else {
+        selectAllCb.checked = false;
+      }
+    }
+  }
+
+  function filterOptions(container, keyword) {
+    const kw = keyword.toLowerCase();
+    const optionLabels = container.querySelectorAll(".ms-option");
+    optionLabels.forEach(lbl => {
+      const text = lbl.textContent.toLowerCase();
+      lbl.style.display = text.includes(kw) ? "flex" : "none";
+    });
+  }
+
+  // ====== MULTI-SELECT MA_BENH ======
+  msDisplay.addEventListener("click", () => {
+    if (!maBenhList.length) return;
+    const isOpen = msDropdown.classList.contains("open");
+    if (isOpen) {
+      closeBenhDropdown();
+    } else {
+      openBenhDropdown();
+    }
+  });
+
+  function openBenhDropdown() {
+    msDropdown.classList.add("open");
+    msDisplay.classList.add("active");
+    tempSelectedMaBenh = [...selectedMaBenh];
+    syncCheckboxes(msOptions, tempSelectedMaBenh, "benh");
+    msSearchInput.value = "";
+    filterOptions(msOptions, "");
+  }
+  function closeBenhDropdown() {
+    msDropdown.classList.remove("open");
+    msDisplay.classList.remove("active");
+  }
+
+  msSearchInput.addEventListener("input", (e) => {
+    filterOptions(msOptions, e.target.value);
+  });
+
+  msSelectAllBtn.addEventListener("click", () => {
+    const checkboxes = msOptions.querySelectorAll('input[type="checkbox"][value]');
+    checkboxes.forEach(cb => cb.checked = true);
+    tempSelectedMaBenh = Array.from(checkboxes).map(cb => cb.value);
+    const selectAllCb = msOptions.querySelector('input[data-type="select-all-benh"]');
+    if (selectAllCb) selectAllCb.checked = true;
+  });
+
+  msClearAllBtn.addEventListener("click", () => {
+    const checkboxes = msOptions.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    tempSelectedMaBenh = [];
+  });
+
+  msOptions.addEventListener("change", (e) => {
+    const target = e.target;
+    if (target.matches('input[data-type="select-all-benh"]')) {
+      const all = msOptions.querySelectorAll('input[type="checkbox"][value]');
+      all.forEach(cb => cb.checked = target.checked);
+    }
+    const sel = msOptions.querySelectorAll('input[type="checkbox"][value]:checked');
+    tempSelectedMaBenh = Array.from(sel).map(cb => cb.value);
+  });
+
+  msOkBtn.addEventListener("click", () => {
+    selectedMaBenh = [...tempSelectedMaBenh];
+    updateBenhDisplayText();
+    renderPreview();
+    closeBenhDropdown();
+  });
+
+  msCancelBtn.addEventListener("click", () => {
+    tempSelectedMaBenh = [...selectedMaBenh];
+    syncCheckboxes(msOptions, tempSelectedMaBenh, "benh");
+    closeBenhDropdown();
+  });
+
+  function updateBenhDisplayText() {
+    if (!selectedMaBenh.length) {
+      msDisplayText.textContent = "Chưa chọn mã bệnh";
+    } else if (selectedMaBenh.length === 1) {
+      msDisplayText.textContent = selectedMaBenh[0];
+    } else if (selectedMaBenh.length <= 3) {
+      msDisplayText.textContent = selectedMaBenh.join(", ");
+    } else {
+      msDisplayText.textContent = `Đã chọn ${selectedMaBenh.length} mã bệnh`;
+    }
+  }
+
+  // ====== MULTI-SELECT LOAI_KCB (tĩnh 3 giá trị) ======
+  loaiDisplay.addEventListener("click", () => {
+    const isOpen = loaiDropdown.classList.contains("open");
+    if (isOpen) {
+      closeLoaiDropdown();
+    } else {
+      openLoaiDropdown();
+    }
+  });
+
+  function openLoaiDropdown() {
+    loaiDropdown.classList.add("open");
+    loaiDisplay.classList.add("active");
+    tempSelectedLoaiKcb = [...selectedLoaiKcb];
+    syncCheckboxes(loaiOptions, tempSelectedLoaiKcb, "loai");
+    loaiSearchInput.value = "";
+    filterOptions(loaiOptions, "");
+  }
+
+  function closeLoaiDropdown() {
+    loaiDropdown.classList.remove("open");
+    loaiDisplay.classList.remove("active");
+  }
+
+  loaiSearchInput.addEventListener("input", (e) => {
+    filterOptions(loaiOptions, e.target.value);
+  });
+
+  loaiSelectAllBtn.addEventListener("click", () => {
+    const checkboxes = loaiOptions.querySelectorAll('input[type="checkbox"][value]');
+    checkboxes.forEach(cb => cb.checked = true);
+    tempSelectedLoaiKcb = Array.from(checkboxes).map(cb => cb.value);
+    const selectAllCb = loaiOptions.querySelector('input[data-type="select-all-loai"]');
+    if (selectAllCb) selectAllCb.checked = true;
+  });
+
+  loaiClearAllBtn.addEventListener("click", () => {
+    const checkboxes = loaiOptions.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    tempSelectedLoaiKcb = [];
+  });
+
+  loaiOptions.addEventListener("change", (e) => {
+    const target = e.target;
+    if (target.matches('input[data-type="select-all-loai"]')) {
+      const all = loaiOptions.querySelectorAll('input[type="checkbox"][value]');
+      all.forEach(cb => cb.checked = target.checked);
+    }
+    const sel = loaiOptions.querySelectorAll('input[type="checkbox"][value]:checked');
+    tempSelectedLoaiKcb = Array.from(sel).map(cb => cb.value);
+  });
+
+  loaiOkBtn.addEventListener("click", () => {
+    selectedLoaiKcb = [...tempSelectedLoaiKcb];
+    updateLoaiDisplayText();
+    renderPreview();
+    closeLoaiDropdown();
+  });
+
+  loaiCancelBtn.addEventListener("click", () => {
+    tempSelectedLoaiKcb = [...selectedLoaiKcb];
+    syncCheckboxes(loaiOptions, tempSelectedLoaiKcb, "loai");
+    closeLoaiDropdown();
+  });
+
+  function updateLoaiDisplayText() {
+    if (!selectedLoaiKcb.length) {
+      loaiDisplayText.textContent = "Không chọn = tất cả";
+    } else if (selectedLoaiKcb.length === 1) {
+      loaiDisplayText.textContent = selectedLoaiKcb[0];
+    } else if (selectedLoaiKcb.length <= 3) {
+      loaiDisplayText.textContent = selectedLoaiKcb.join(", ");
+    } else {
+      loaiDisplayText.textContent = `Đã chọn ${selectedLoaiKcb.length} loại KCB`;
+    }
+  }
+
+  // Đóng dropdown khi click ra ngoài
+  document.addEventListener("click", (e) => {
+    if (!document.getElementById("maBenhMulti").contains(e.target)) {
+      closeBenhDropdown();
+    }
+    if (!document.getElementById("loaiMulti").contains(e.target)) {
+      closeLoaiDropdown();
+    }
+  });
+
+  // ====== RENDER BẢNG PREVIEW ======
+  function renderPreview() {
+    previewTableBody.innerHTML = "";
+    if (!selectedMaBenh.length) {
+      statusBox.textContent = "Chưa chọn mã bệnh.";
+      return;
+    }
+
+    const data = allRows.filter(r => {
+      const benhMatch = selectedMaBenh.includes(r.MA_BENH);
+      const loaiText = getLoaiKcbText(r);
+      const loaiMatch = selectedLoaiKcb.length
+        ? selectedLoaiKcb.includes(loaiText)
+        : true; // không chọn gì = tất cả
+      return benhMatch && loaiMatch;
+    });
+
+    data.forEach((r, i) => {
+      const maBenh = r.MA_BENH || "";
+      let gt = r.GIOI_TINH == 1 ? "Nam" : r.GIOI_TINH == 2 ? "Nữ" : r.GIOI_TINH;
+      const year = r.NAM_SINH || (r.NGAY_SINH ? r.NGAY_SINH.toString().substring(0, 4) : "");
+      const loaiText = getLoaiKcbText(r);
+
+      previewTableBody.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td class="text-center">${i + 1}</td>
+          <td class="text-center">${maBenh}</td>
+          <td>${r.DIA_CHI}</td>
+          <td>${r.HO_TEN}</td>
+          <td class="text-center">${gt}</td>
+          <td class="text-center">${year}</td>
+          <td>${r.MA_THE}</td>
+          <td>${r.CMND || ""}</td>
+          <td>${loaiText}</td>
+        </tr>
+      `);
+    });
+
+    const loaiText = selectedLoaiKcb.length ? `${selectedLoaiKcb.length} loại KCB` : "tất cả loại KCB";
+    statusBox.textContent = `Có ${data.length} bệnh nhân · ${selectedMaBenh.length} mã bệnh · ${loaiText}.`;
+  }
+
+  // ====== XUẤT EXCEL (MÃ BỆNH sau STT, LOẠI KCB cột cuối) ======
+  btnExport.addEventListener("click", function () {
+    if (!selectedMaBenh.length) {
+      alert("Vui lòng chọn ít nhất 1 mã bệnh.");
+      return;
+    }
+
+    const data = allRows.filter(r => {
+      const benhMatch = selectedMaBenh.includes(r.MA_BENH);
+      const loaiText = getLoaiKcbText(r);
+      const loaiMatch = selectedLoaiKcb.length
+        ? selectedLoaiKcb.includes(loaiText)
+        : true;
+      return benhMatch && loaiMatch;
+    });
+
+    if (!data.length) {
+      alert("Không có bệnh nhân với điều kiện đã chọn.");
+      return;
+    }
+
+    const aoa = [["STT","MÃ BỆNH","ĐỊA CHỈ","HỌ & TÊN BN","GIỚI TÍNH","NĂM SINH","MÃ THẺ BHYT","CMND","LOẠI KCB"]];
+
+    data.forEach((r, i) => {
+      const maBenh = r.MA_BENH || "";
+      const gt = r.GIOI_TINH == 1 ? "Nam" : r.GIOI_TINH == 2 ? "Nữ" : r.GIOI_TINH;
+      const year = r.NAM_SINH || (r.NGAY_SINH ? r.NGAY_SINH.toString().substring(0, 4) : "");
+      const loaiText = getLoaiKcbText(r);
+
+      aoa.push([
+        i + 1,
+        maBenh,
+        r.DIA_CHI,
+        r.HO_TEN,
+        gt,
+        year,
+        r.MA_THE,
+        r.CMND || "",
+        loaiText
+      ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, "DS");
+
+    ws["!cols"] = [
+      { wch: 6 },  // STT
+      { wch: 14 }, // MA BENH
+      { wch: 35 }, // DIA CHI
+      { wch: 25 }, // HO TEN
+      { wch: 10 }, // GT
+      { wch: 10 }, // NAM SINH
+      { wch: 22 }, // MA THE
+      { wch: 16 }, // CMND
+      { wch: 20 }  // LOAI KCB
+    ];
+
+    const benhCode = selectedMaBenh.length === 1 ? selectedMaBenh[0] : `MA_${selectedMaBenh.length}`;
+    const loaiCode = selectedLoaiKcb.length ? `LK_${selectedLoaiKcb.length}` : "ALL_LOAI";
+    XLSX.writeFile(wb, `DS_${benhCode}_${loaiCode}.xlsx`);
+  });
+</script>
+</body>
+</html>
